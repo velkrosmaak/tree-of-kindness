@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Tree Of Kindness Cobnuts</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <h1>🌰 The Tree Of Kindness Cobnuts 🌰</h1>
+
+        <div class="game-area">
+            <div class="cobnut-source-area">
+                <p>Drag a cobnut for your kind gesture!</p>
+                <div id="draggableCobnut" class="cobnut" draggable="true">
+                    <img src="{{ url_for('static', filename='images/cobnut.png') }}" alt="Cobnut">
+                </div>
+            </div>
+
+            <div id="jarArea" class="jar-area">
+                <img id="jarImage"
+                     src="{{ url_for('static', filename='images/jar_empty.png') }}"
+                     data-empty-src="{{ url_for('static', filename='images/jar_empty.png') }}"
+                     data-full-src="{{ url_for('static', filename='images/jar_full.png') }}"
+                     alt="Jar">
+                <div id="cobnutCounterJar" class="cobnut-counter-jar">0/10</div>
+            </div>
+        </div>
+
+        <div class="stats-area">
+            <p>Total Cobnuts Earned: <span id="totalCobnutsDisplay">0</span></p>
+        </div>
+
+        <div id="animationContainer" class="animation-container" style="display:none;"
+             data-animation-gif-src="{{ url_for('static', filename='images/unicorn_rainbow.gif') }}">
+            <h2>Wow! The jar is full!</h2>
+            <img id="funAnimation" src="#" alt="Unicorns and Rainbows!"> <p>Amazing kindness!</p>
+        </div>
+
+        <button id="resetTestButton" style="display:none;">Reset Jar (Test)</button>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

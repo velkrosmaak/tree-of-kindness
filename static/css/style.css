@@ -1,0 +1,168 @@
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f0f8ff; /* Light Alice Blue */
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0;
+    padding: 20px;
+    touch-action: none; /* Prevent default touch actions like scrolling on the whole body, might be too aggressive */
+    -webkit-user-select: none; /* Safari */
+    -ms-user-select: none; /* IE 10+ */
+    user-select: none; /* Standard */
+}
+
+.app-container {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    text-align: center;
+    width: 90%;
+    max-width: 600px;
+}
+
+h1 {
+    color: #4a7c59; /* Forest Green */
+    margin-bottom: 20px;
+}
+
+.game-area {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    margin: 20px 0;
+    min-height: 220px;
+}
+
+.cobnut-source-area {
+    text-align: center;
+    padding: 10px;
+}
+
+.cobnut-source-area p {
+    margin-bottom: 15px;
+    font-size: 0.9em;
+    color: #555;
+}
+
+.cobnut {
+    display: inline-block; /* Allows text-align center from parent to work if needed */
+    touch-action: none; /* Important for draggable touch element */
+}
+
+.cobnut img {
+    width: 60px;
+    height: auto;
+    cursor: grab;
+    transition: transform 0.2s ease-out;
+    vertical-align: middle; /* if .cobnut is inline-block */
+}
+
+.cobnut.dragging, #draggableCobnutClone { /* Style for both desktop drag and touch clone */
+    opacity: 0.5;
+    transform: scale(1.1);
+    cursor: grabbing;
+}
+
+#draggableCobnutClone { /* Specific to the touch-dragged clone */
+    position: absolute; /* Will be set by JS */
+    z-index: 1000;
+    pointer-events: none; /* So it doesn't interfere with elementFromPoint */
+}
+
+
+.jar-area {
+    width: 150px;
+    height: 200px;
+    background-color: #f0f0f0;
+    border: 3px dashed #cccccc;
+    border-radius: 20px 20px 10px 10px; /* Jar-like shape for border */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s ease;
+}
+
+.jar-area.drag-over { /* Class for when dragging over the jar */
+    border-color: #28a745; /* Green highlight */
+}
+
+
+.jar-area img#jarImage {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+}
+
+.cobnut-counter-jar {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(74, 124, 89, 0.8); /* Semi-transparent Forest Green */
+    color: white;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.9em;
+    font-weight: bold;
+}
+
+.stats-area {
+    margin-top: 25px;
+    font-size: 1.1em;
+    color: #333;
+}
+
+.stats-area span {
+    font-weight: bold;
+    color: #4a7c59;
+}
+
+.animation-container {
+    margin-top: 30px;
+    padding: 20px;
+    background-color: #fff0f5; /* Lavender Blush */
+    border-radius: 10px;
+    border: 2px solid #ffc0cb; /* Pink */
+    box-sizing: border-box;
+    /* min-width and min-height can be adjusted based on GIF size */
+    min-width: 200px;
+    min-height: 150px;
+    display: flex; /* For centering content if needed */
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.animation-container h2 {
+    color: #d63384; /* A vibrant pink */
+    margin-bottom: 10px;
+}
+
+.animation-container p {
+    color: #555;
+    margin-top: 10px;
+}
+
+.animation-container img#funAnimation {
+    max-width: 100%; /* Takes full width of its container */
+    max-height: 250px; /* Control max height of GIF */
+    height: auto;
+    border-radius: 8px;
+    margin-top: 10px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Visibility utility classes */
+.hidden {
+    display: none !important;
+}
+.visible { /* Ensure this makes the container itself visible */
+    display: flex !important; /* or 'block !important;' if flex isn't needed for its direct children positioning */
+}
