@@ -11,10 +11,8 @@
                 <input type="text" id="name" name="name" value="{{ user.name }}" required>
             </div>
             <div>
-                <label for="current_profile_picture">Current Profile Picture:</label>
+                <label>Current Profile Picture:</label>
                 {% if user.profile_picture %}
-                     {# Ensure user.profile_picture is treated as a plain filename #}
-                     {# Stripping both kinds of slashes just to be extremely safe with existing data #}
                     <img src="{{ url_for('static', filename='profile_pics/' + user.profile_picture.lstrip('/\\')) }}" alt="{{ user.name }} profile picture" class="profile-pic-thumb">
                 {% else %}
                     <p>No profile picture set.</p>
@@ -22,9 +20,24 @@
             </div>
             <div>
                 <label for="profile_picture">New Profile Picture (optional):</label>
-                <input type="file" id="profile_picture" name="profile_picture" accept="image/*" onchange="previewImage(event, 'editUserPreview')">
-                 <div id="editUserPreview" class="image-preview"></div>
+                <input type="file" id="profile_picture" name="profile_picture" accept="image/*" onchange="previewImage(event, 'editUserProfilePreview')">
+                 <div id="editUserProfilePreview" class="image-preview"></div>
             </div>
+
+            <div>
+                <label>Current Animation GIF:</label>
+                {% if user.animation_gif %}
+                    <img src="{{ url_for('static', filename='animation_gifs/' + user.animation_gif.lstrip('/\\')) }}" alt="Current Animation GIF" class="profile-pic-thumb">
+                {% else %}
+                    <p>Using default animation.</p>
+                {% endif %}
+            </div>
+            <div>
+                <label for="animation_gif">New Animation GIF (optional):</label>
+                <input type="file" id="animation_gif" name="animation_gif" accept="image/gif" onchange="previewImage(event, 'editUserAnimationPreview')">
+                <div id="editUserAnimationPreview" class="image-preview"></div>
+            </div>
+
             <div>
                 <label for="cobnuts_target">Cobnuts Target for Animation:</label>
                 <input type="number" id="cobnuts_target" name="cobnuts_target" value="{{ user.cobnuts_target }}" min="1" required>

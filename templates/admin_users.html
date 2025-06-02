@@ -11,9 +11,14 @@
                 <input type="text" id="name" name="name" required>
             </div>
             <div>
-                <label for="profile_picture">Profile Picture:</label>
-                <input type="file" id="profile_picture" name="profile_picture" accept="image/*" onchange="previewImage(event, 'newUserPreview')" required>
-                <div id="newUserPreview" class="image-preview"></div>
+                <label for="profile_picture">Profile Picture (Required):</label>
+                <input type="file" id="profile_picture" name="profile_picture" accept="image/*" onchange="previewImage(event, 'newUserProfilePreview')" required>
+                <div id="newUserProfilePreview" class="image-preview"></div>
+            </div>
+            <div>
+                <label for="animation_gif">Custom Animation GIF (Optional):</label>
+                <input type="file" id="animation_gif" name="animation_gif" accept="image/gif" onchange="previewImage(event, 'newUserAnimationPreview')">
+                <div id="newUserAnimationPreview" class="image-preview"></div>
             </div>
             <div>
                 <label for="cobnuts_target">Cobnuts Target for Animation:</label>
@@ -32,6 +37,7 @@
                         <th>Profile Pic</th>
                         <th>Name</th>
                         <th>Cobnuts Target</th>
+                        <th>Animation GIF</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -40,8 +46,6 @@
                     <tr>
                         <td>
                             {% if user.profile_picture %}
-                                {# Ensure user.profile_picture is treated as a plain filename #}
-                                {# Stripping both kinds of slashes just to be extremely safe with existing data #}
                                 <img src="{{ url_for('static', filename='profile_pics/' + user.profile_picture.lstrip('/\\')) }}" alt="{{ user.name }} profile picture" class="profile-pic-thumb">
                             {% else %}
                                 No Pic
@@ -49,6 +53,13 @@
                         </td>
                         <td>{{ user.name }}</td>
                         <td>{{ user.cobnuts_target }}</td>
+                        <td>
+                            {% if user.animation_gif %}
+                                <img src="{{ url_for('static', filename='animation_gifs/' + user.animation_gif.lstrip('/\\')) }}" alt="Animation GIF" class="profile-pic-thumb">
+                            {% else %}
+                                Default
+                            {% endif %}
+                        </td>
                         <td>
                             <a href="{{ url_for('admin_edit_user', user_id=user.id) }}" class="button-secondary">Edit</a>
                             <form method="POST" action="{{ url_for('admin_delete_user', user_id=user.id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete {{ user.name }}? This cannot be undone.');">
