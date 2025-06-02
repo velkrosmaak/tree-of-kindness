@@ -3,26 +3,28 @@ import os
 from flask import Flask, render_template, jsonify, request, g, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 from datetime import datetime
-from flask_httpauth import HTTPBasicAuth # <<< For Basic Authentication
+from flask_httpauth import HTTPBasicAuth
 
 DATABASE = 'cobnuts_multiusers.db'
-SCHEMA_FILE = 'schema.sql' # Ensure this file or the string in init_db is updated
+SCHEMA_FILE = 'schema.sql' # Ensure this file or the string in init_db is updated with animation_gif column
 
 # Define upload folders
 PROFILE_PIC_UPLOAD_FOLDER = os.path.join('static', 'profile_pics')
 ANIMATION_GIF_UPLOAD_FOLDER = os.path.join('static', 'animation_gifs')
+CELEBRATION_SOUNDS_FOLDER = os.path.join('static', 'audio', 'celebration_sounds') # <<< NEW FOLDER CONSTANT
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_SOUND_EXTENSIONS = {'mp3', 'wav', 'ogg'} # <<< NEW SOUND EXTENSIONS
 
 app = Flask(__name__)
 app.config['PROFILE_PIC_UPLOAD_FOLDER'] = PROFILE_PIC_UPLOAD_FOLDER
 app.config['ANIMATION_GIF_UPLOAD_FOLDER'] = ANIMATION_GIF_UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # 16MB limit for uploads
+app.config['CELEBRATION_SOUNDS_FOLDER'] = CELEBRATION_SOUNDS_FOLDER # <<< ADDED TO APP CONFIG
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 app.secret_key = 'your_very_secret_admin_key_!please_change!'
 
-# --- Basic Authentication Setup ---
 auth = HTTPBasicAuth()
 users_auth = {
-    "admin": "admin" # In a real app, use hashed passwords & a more secure store
+    "admin": "admin"
 }
 
 @auth.verify_password
@@ -30,21 +32,20 @@ def verify_password(username, password):
     if username in users_auth and users_auth.get(username) == password:
         return username
     return None
-# --- End Basic Authentication Setup ---
 
 @app.context_processor
 def inject_now():
     return {'now': datetime.utcnow()}
 
-# Create upload folders if they don't exist
-if not os.path.exists(PROFILE_PIC_UPLOAD_FOLDER):
-    os.makedirs(PROFILE_PIC_UPLOAD_FOLDER)
-if not os.path.exists(ANIMATION_GIF_UPLOAD_FOLDER):
-    os.makedirs(ANIMATION_GIF_UPLOAD_FOLDER)
+# Create upload and sound folders if they don't exist
+for folder_path in [PROFILE_PIC_UPLOAD_FOLDER, ANIMATION_GIF_UPLOAD_FOLDER, CELEBRATION_SOUNDS_FOLDER]: # <<< UPDATED LOOP
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+        print(f"Created folder: {folder_path}")
 
-def allowed_file(filename):
+def allowed_file(filename, extensions_set=ALLOWED_EXTENSIONS): # Added extensions_set parameter
     return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+           filename.rsplit('.', 1)[1].lower() in extensions_set
 
 def get_db():
     db = getattr(g, '_database', None)
@@ -62,9 +63,9 @@ def close_connection(exception):
 
 def init_db(force_recreate=False):
     schema_path = os.path.join(app.root_path, SCHEMA_FILE)
-    # Ensure schema_path uses the updated schema content
-    if not os.path.exists(schema_path) or force_recreate: # Simplified logic to ensure schema content is up-to-date
-        with open(schema_path, 'w') as f: # Overwrite/create with correct schema
+    # Ensure schema_path uses the updated schema content (including animation_gif in users table)
+    if not os.path.exists(schema_path) or force_recreate:
+        with open(schema_path, 'w') as f:
             f.write("""
 DROP TABLE IF EXISTS cobnuts_tracker;
 DROP TABLE IF EXISTS users;
@@ -74,7 +75,7 @@ CREATE TABLE users (
     name TEXT NOT NULL UNIQUE,
     profile_picture TEXT,
     cobnuts_target INTEGER NOT NULL DEFAULT 10,
-    animation_gif TEXT
+    animation_gif TEXT -- User-specific animation GIF
 );
 
 CREATE TABLE cobnuts_tracker (
@@ -84,7 +85,7 @@ CREATE TABLE cobnuts_tracker (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
             """)
-        print(f"{SCHEMA_FILE} created/updated with current schema.")
+        print(f"{SCHEMA_FILE} created/updated with current schema (including animation_gif).")
 
     with app.app_context():
         db = get_db()
@@ -97,13 +98,10 @@ CREATE TABLE cobnuts_tracker (
             db.commit()
             print("Database initialized.")
         else:
-            # Basic check if 'users' table has 'animation_gif' column
             cursor = db.execute("PRAGMA table_info(users)")
             columns = [row['name'] for row in cursor.fetchall()]
             if 'animation_gif' not in columns:
                 print("'animation_gif' column missing from users table. Re-initializing database...")
-                # This is a destructive re-initialization if the column is missing.
-                # In a production scenario, you'd use migrations.
                 with app.open_resource(SCHEMA_FILE, mode='r') as f:
                     db.cursor().executescript(f.read())
                 db.commit()
@@ -118,8 +116,7 @@ def query_db(query, args=(), one=False):
     cur.close()
     return (rv[0] if rv else None) if one else rv
 
-# --- User Management Functions (Admin Backend) ---
-def add_user_to_db(name, profile_picture_filename, cobnuts_target, animation_gif_filename): # Added animation_gif
+def add_user_to_db(name, profile_picture_filename, cobnuts_target, animation_gif_filename):
     db = get_db()
     try:
         cursor = db.execute("INSERT INTO users (name, profile_picture, cobnuts_target, animation_gif) VALUES (?, ?, ?, ?)",
@@ -139,25 +136,24 @@ def get_all_users_admin():
 def get_user_by_id_admin(user_id):
     return query_db("SELECT id, name, profile_picture, cobnuts_target, animation_gif FROM users WHERE id = ?", (user_id,), one=True)
 
-def update_user_in_db(user_id, name, profile_picture_filename, cobnuts_target, animation_gif_filename): # Added animation_gif
+def update_user_in_db(user_id, name, profile_picture_filename, cobnuts_target, animation_gif_filename):
     db = get_db()
     try:
-        # Build query dynamically based on whether new files are provided
         fields_to_update = ["name = ?", "cobnuts_target = ?"]
-        args = [name, cobnuts_target]
+        args_list = [name, cobnuts_target]
 
-        if profile_picture_filename is not None: # Explicitly check for None, empty string could mean "remove picture" if desired
+        if profile_picture_filename is not None:
             fields_to_update.append("profile_picture = ?")
-            args.append(profile_picture_filename)
+            args_list.append(profile_picture_filename)
         
         if animation_gif_filename is not None:
             fields_to_update.append("animation_gif = ?")
-            args.append(animation_gif_filename)
+            args_list.append(animation_gif_filename)
         
-        args.append(user_id)
+        args_list.append(user_id)
         query = f"UPDATE users SET {', '.join(fields_to_update)} WHERE id = ?"
         
-        db.execute(query, tuple(args))
+        db.execute(query, tuple(args_list))
         db.commit()
         return True
     except sqlite3.IntegrityError:
@@ -166,42 +162,39 @@ def update_user_in_db(user_id, name, profile_picture_filename, cobnuts_target, a
 def delete_user_from_db(user_id):
     user = get_user_by_id_admin(user_id)
     if user:
-        # Delete profile picture
         if user['profile_picture']:
             try:
                 file_path = os.path.join(app.config['PROFILE_PIC_UPLOAD_FOLDER'], user['profile_picture'])
                 if os.path.exists(file_path): os.remove(file_path)
             except OSError as e: print(f"Error deleting profile pic: {e}")
-        # Delete animation GIF
         if user['animation_gif']:
             try:
                 file_path = os.path.join(app.config['ANIMATION_GIF_UPLOAD_FOLDER'], user['animation_gif'])
                 if os.path.exists(file_path): os.remove(file_path)
             except OSError as e: print(f"Error deleting animation GIF: {e}")
-
     db = get_db()
     db.execute("DELETE FROM users WHERE id = ?", (user_id,))
     db.commit()
 
-# Helper to save uploaded file and return unique filename
-def save_upload(file_storage, upload_folder_config_key):
-    if file_storage and file_storage.filename != '' and allowed_file(file_storage.filename):
+def save_upload(file_storage, upload_folder_config_key, allowed_extensions_set=ALLOWED_EXTENSIONS):
+    if file_storage and file_storage.filename != '' and allowed_file(file_storage.filename, allowed_extensions_set):
         filename = secure_filename(file_storage.filename)
         base, ext = os.path.splitext(filename)
         counter = 1
         unique_filename = filename
-        save_path = os.path.join(app.config[upload_folder_config_key], unique_filename)
+        # Use app.config to get the folder path
+        folder_path = app.config[upload_folder_config_key]
+        save_path = os.path.join(folder_path, unique_filename)
         
         while os.path.exists(save_path):
             unique_filename = f"{base}_{counter}{ext}"
-            save_path = os.path.join(app.config[upload_folder_config_key], unique_filename)
+            save_path = os.path.join(folder_path, unique_filename)
             counter += 1
         
         file_storage.save(save_path)
         return unique_filename
     return None
 
-# --- Admin Routes (Now with @auth.login_required) ---
 @app.route('/admin', methods=['GET', 'POST'])
 @auth.login_required
 def admin_users():
@@ -209,30 +202,26 @@ def admin_users():
         name = request.form.get('name')
         cobnuts_target = int(request.form.get('cobnuts_target', 10))
         profile_pic_file = request.files.get('profile_picture')
-        animation_gif_file = request.files.get('animation_gif') # New
+        animation_gif_file = request.files.get('animation_gif')
 
         if not name: flash('Name is required.', 'error')
-        # Profile pic is still required for new user for simplicity, can be made optional
         elif not profile_pic_file or profile_pic_file.filename == '': flash('Profile picture is required.', 'error')
         else:
             profile_pic_filename = save_upload(profile_pic_file, 'PROFILE_PIC_UPLOAD_FOLDER')
-            animation_gif_filename = save_upload(animation_gif_file, 'ANIMATION_GIF_UPLOAD_FOLDER') # Can be None
+            animation_gif_filename = save_upload(animation_gif_file, 'ANIMATION_GIF_UPLOAD_FOLDER')
 
-            if not profile_pic_filename: # save_upload returns None on failure/no file
+            if not profile_pic_filename:
                 flash('Invalid profile picture file type or upload error.', 'error')
-            # Check animation_gif_file only if it was provided but failed to save
             elif animation_gif_file and animation_gif_file.filename != '' and not animation_gif_filename:
                  flash('Invalid animation GIF file type or upload error.', 'error')
-                 if profile_pic_filename: # Clean up successfully uploaded profile pic if animation failed
+                 if profile_pic_filename:
                     os.remove(os.path.join(app.config['PROFILE_PIC_UPLOAD_FOLDER'], profile_pic_filename))
-
             else:
                 user_id = add_user_to_db(name, profile_pic_filename, cobnuts_target, animation_gif_filename)
                 if user_id:
                     flash(f'User {name} added successfully!', 'success')
                 else:
                     flash(f'Username {name} already exists or database error.', 'error')
-                    # Clean up uploaded files if DB insert failed
                     if profile_pic_filename: os.remove(os.path.join(app.config['PROFILE_PIC_UPLOAD_FOLDER'], profile_pic_filename))
                     if animation_gif_filename: os.remove(os.path.join(app.config['ANIMATION_GIF_UPLOAD_FOLDER'], animation_gif_filename))
             return redirect(url_for('admin_users'))
@@ -251,35 +240,31 @@ def admin_edit_user(user_id):
     if request.method == 'POST':
         name = request.form.get('name')
         cobnuts_target = int(request.form.get('cobnuts_target', user['cobnuts_target']))
-        
         profile_pic_file = request.files.get('profile_picture')
         animation_gif_file = request.files.get('animation_gif')
 
-        new_profile_pic_filename = None # Means "don't change" unless a file is uploaded
+        new_profile_pic_filename = None
         if profile_pic_file and profile_pic_file.filename != '':
             temp_filename = save_upload(profile_pic_file, 'PROFILE_PIC_UPLOAD_FOLDER')
             if temp_filename:
                 new_profile_pic_filename = temp_filename
-                # Delete old profile picture if a new one is successfully uploaded
                 if user['profile_picture'] and user['profile_picture'] != new_profile_pic_filename:
                     old_file_path = os.path.join(app.config['PROFILE_PIC_UPLOAD_FOLDER'], user['profile_picture'])
                     if os.path.exists(old_file_path): os.remove(old_file_path)
             else:
                 flash('Invalid new profile picture file. Profile picture not updated.', 'warning')
 
-        new_animation_gif_filename = None # Means "don't change"
+        new_animation_gif_filename = None
         if animation_gif_file and animation_gif_file.filename != '':
             temp_filename = save_upload(animation_gif_file, 'ANIMATION_GIF_UPLOAD_FOLDER')
             if temp_filename:
                 new_animation_gif_filename = temp_filename
-                # Delete old animation GIF if a new one is successfully uploaded
                 if user['animation_gif'] and user['animation_gif'] != new_animation_gif_filename:
                     old_file_path = os.path.join(app.config['ANIMATION_GIF_UPLOAD_FOLDER'], user['animation_gif'])
                     if os.path.exists(old_file_path): os.remove(old_file_path)
             else:
                 flash('Invalid new animation GIF file. Animation GIF not updated.', 'warning')
         
-        # update_user_in_db expects actual filenames or None if no change for that file
         if update_user_in_db(user_id, name, new_profile_pic_filename, cobnuts_target, new_animation_gif_filename):
             flash(f'User {name} updated successfully!', 'success')
         else:
@@ -287,7 +272,6 @@ def admin_edit_user(user_id):
         return redirect(url_for('admin_users'))
 
     return render_template('admin_edit_user.html', user=user)
-
 
 @app.route('/admin/delete_user/<int:user_id>', methods=['POST'])
 @auth.login_required
@@ -300,8 +284,6 @@ def admin_delete_user(user_id):
         flash('User not found or already deleted.', 'warning')
     return redirect(url_for('admin_users'))
 
-
-# --- API Endpoints ---
 @app.route('/api/users', methods=['GET'])
 def api_get_users():
     users_from_db = query_db("SELECT id, name, profile_picture, cobnuts_target, animation_gif FROM users ORDER BY name")
@@ -314,7 +296,7 @@ def api_get_users():
                 path_in_static = f"profile_pics/{actual_filename}"
                 profile_pic_url = url_for('static', filename=path_in_static)
             
-            animation_gif_url = None # Default/fallback animation can be handled by JS
+            animation_gif_url = None
             if u['animation_gif']:
                 actual_filename = os.path.basename(u['animation_gif'])
                 path_in_static = f"animation_gifs/{actual_filename}"
@@ -325,16 +307,13 @@ def api_get_users():
                 'name': u['name'],
                 'profile_picture_url': profile_pic_url,
                 'cobnuts_target': u['cobnuts_target'],
-                'animation_gif_url': animation_gif_url # Added
+                'animation_gif_url': animation_gif_url
             })
     return jsonify(users_list)
 
-# ... (api_get_user_status, api_add_cobnut, api_reset_jar remain largely the same, but ensure they don't break) ...
-# They don't directly use animation_gif, but cobnuts_target is important.
-
 @app.route('/api/user_status/<int:user_id>', methods=['GET'])
 def api_get_user_status(user_id):
-    user_info = query_db("SELECT cobnuts_target, animation_gif FROM users WHERE id = ?", (user_id,), one=True) # fetch animation_gif too
+    user_info = query_db("SELECT cobnuts_target, animation_gif FROM users WHERE id = ?", (user_id,), one=True)
     if not user_info:
         return jsonify({'error': 'User not found'}), 404
     
@@ -356,7 +335,7 @@ def api_get_user_status(user_id):
         'current_cobnuts': tracker_info['current_cobnuts_in_jar'],
         'total_cobnuts': tracker_info['total_cobnuts_earned'],
         'cobnuts_target': user_info['cobnuts_target'],
-        'animation_gif_url': animation_gif_url # Also return here for consistency if needed by game directly
+        'animation_gif_url': animation_gif_url
     })
 
 @app.route('/api/add_cobnut/<int:user_id>', methods=['POST'])
@@ -395,18 +374,37 @@ def api_reset_jar(user_id):
         'cobnuts_target': user_info['cobnuts_target']
     })
 
-# --- Main App Route ---
+# <<< NEW API ENDPOINT FOR CELEBRATION SOUNDS >>>
+@app.route('/api/celebration_sounds', methods=['GET'])
+def api_get_celebration_sounds():
+    sound_files = []
+    sounds_folder_path = app.config['CELEBRATION_SOUNDS_FOLDER']
+    try:
+        if os.path.exists(sounds_folder_path):
+            for filename in os.listdir(sounds_folder_path):
+                if allowed_file(filename, ALLOWED_SOUND_EXTENSIONS):
+                    # Construct path relative to 'static' for url_for
+                    # Path is 'audio/celebration_sounds/filename.ext'
+                    path_in_static = os.path.join('audio', 'celebration_sounds', filename).replace("\\", "/")
+                    sound_files.append(url_for('static', filename=path_in_static))
+        else:
+            print(f"Celebration sounds folder not found: {sounds_folder_path}")
+    except Exception as e:
+        print(f"Error listing celebration sounds: {e}")
+        return jsonify({'error': str(e)}), 500
+    return jsonify(sound_files)
+
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# --- CLI command to initialize DB ---
 @app.cli.command('initdb')
 def initdb_command():
     """Initializes the database."""
-    init_db(force_recreate=True) # Force schema update
+    init_db(force_recreate=True)
     print('Database initialized/updated.')
 
 if __name__ == '__main__':
-    init_db() # Initialize DB on first run if needed
+    init_db()
     app.run(debug=True, port=5001)

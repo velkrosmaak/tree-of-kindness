@@ -19,23 +19,49 @@ document.addEventListener('DOMContentLoaded', () => {
     // Data from HTML (passed by Flask's url_for for default animation)
     const emptyJarSrc = jarImage.dataset.emptySrc;
     const fullJarSrc = jarImage.dataset.fullSrc;
-    const defaultAnimationGifSrc = animationContainer.dataset.animationGifSrc; // Fallback
+    const defaultAnimationGifSrc = animationContainer.dataset.animationGifSrc;
 
     // Sound
-    const cobnutDropSound = new Audio('/static/audio/cobnut_sound.mp3');
+    const cobnutDropSound = new Audio('/static/audio/cobnut_sound.mp3'); // Ensure this file exists
     cobnutDropSound.preload = 'auto';
+
+    // --- NEW: For Celebration Sounds ---
+    let celebrationSoundsList = [];
+    const celebrationAudioPlayer = new Audio(); // Reusable Audio object for celebration
+    // --- END NEW ---
 
     // App State
     let selectedUserId = null;
     let currentUserTarget = 10;
-    let currentUserAnimationGifUrl = defaultAnimationGifSrc; // Initialize with default
+    let currentUserAnimationGifUrl = defaultAnimationGifSrc;
 
     let isDraggingDesktop = false;
     let isDraggingTouch = false;
     let dragClone = null;
     let touchOffsetX = 0, touchOffsetY = 0;
 
-    // --- User Selection ---
+    // --- NEW: Fetch Celebration Sounds ---
+    async function fetchCelebrationSounds() {
+        try {
+            const response = await fetch('/api/celebration_sounds');
+            if (!response.ok) {
+                console.error('Failed to fetch celebration sounds list, status:', response.status);
+                celebrationSoundsList = []; // Ensure it's an empty array on failure
+                return;
+            }
+            celebrationSoundsList = await response.json();
+            if (!Array.isArray(celebrationSoundsList)) {
+                console.error('Celebration sounds API did not return an array:', celebrationSoundsList);
+                celebrationSoundsList = [];
+            }
+            console.log("Celebration sounds loaded:", celebrationSoundsList);
+        } catch (error) {
+            console.error('Error fetching celebration sounds:', error);
+            celebrationSoundsList = [];
+        }
+    }
+    // --- END NEW ---
+
     async function loadUsers() {
         try {
             const response = await fetch('/api/users');
@@ -51,15 +77,11 @@ document.addEventListener('DOMContentLoaded', () => {
             users.forEach(user => {
                 const userCard = document.createElement('div');
                 userCard.className = 'user-card';
-                // Store all necessary user data on the card element
                 userCard.dataset.userId = user.id;
-                userCard.dataset.userName = user.name;
-                userCard.dataset.userPic = user.profile_picture_url || '/static/images/cobnut.png'; // Default profile pic
-                userCard.dataset.userTarget = user.cobnuts_target;
-                userCard.dataset.userAnimation = user.animation_gif_url || defaultAnimationGifSrc; // User's animation or default
+                // User data is passed directly to selectUser now
 
                 const img = document.createElement('img');
-                img.src = user.profile_picture_url || '/static/images/cobnut.png';
+                img.src = user.profile_picture_url || '/static/images/cobnut.png'; // Default profile pic
                 img.alt = user.name;
 
                 const nameP = document.createElement('p');
@@ -84,10 +106,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function selectUser(userId, name, picUrl, target, animationUrl) { // Added animationUrl
+    function selectUser(userId, name, picUrl, target, animationUrl) {
         selectedUserId = userId;
         currentUserTarget = target;
-        currentUserAnimationGifUrl = animationUrl || defaultAnimationGifSrc; // Use user's or default
+        currentUserAnimationGifUrl = animationUrl || defaultAnimationGifSrc;
         localStorage.setItem('selectedUserId', userId);
 
         currentUserName.textContent = name;
@@ -95,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         userSelectionScreen.style.display = 'none';
         appContainer.style.display = 'flex';
-        fetchAndUpdateUserStatus(); // This will also update target and animation if needed from server
+        fetchAndUpdateUserStatus();
     }
 
     changeUserButton.addEventListener('click', () => {
@@ -103,11 +125,10 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.removeItem('selectedUserId');
         appContainer.style.display = 'none';
         userSelectionScreen.style.display = 'flex';
-        currentUserAnimationGifUrl = defaultAnimationGifSrc; // Reset to default
+        currentUserAnimationGifUrl = defaultAnimationGifSrc;
         loadUsers();
     });
 
-    // --- Game Logic (User-Specific) ---
     async function fetchAndUpdateUserStatus() {
         if (!selectedUserId) return;
         try {
@@ -119,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Could not load your cobnut data."); return;
             }
             currentUserTarget = data.cobnuts_target;
-            currentUserAnimationGifUrl = data.animation_gif_url || defaultAnimationGifSrc; // Update from server
+            currentUserAnimationGifUrl = data.animation_gif_url || defaultAnimationGifSrc;
             updateDisplay(data.current_cobnuts, data.total_cobnuts);
             jarImage.src = (data.current_cobnuts >= currentUserTarget) ? fullJarSrc : emptyJarSrc;
         } catch (error) {
@@ -132,19 +153,22 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateDisplay(current, total) {
         cobnutCounterJarDisplay.textContent = `${current}/${currentUserTarget}`;
         totalCobnutsDisplay.textContent = total;
-        jarImage.src = (current >= currentUserTarget) ? fullJarSrc : (current === 0 ? emptyJarSrc : jarImage.src); // Avoid flicker if intermediate
+        jarImage.src = (current >= currentUserTarget) ? fullJarSrc : (current === 0 ? emptyJarSrc : jarImage.src);
     }
 
     async function handleCobnutDrop() {
         if (!selectedUserId) { alert("Please select a user first!"); return; }
         try {
             const response = await fetch(`/api/add_cobnut/${selectedUserId}`, { method: 'POST' });
-            if (!response.ok) throw new Error(`Server error: ${response.status}`);
+            if (!response.ok) {
+                 const errorData = await response.json().catch(() => ({error: "Server error"}));
+                 throw new Error(errorData.error || `Server error: ${response.status}`);
+            }
             const data = await response.json();
             updateDisplay(data.current_cobnuts, data.total_cobnuts);
             if (cobnutDropSound) {
                 cobnutDropSound.currentTime = 0;
-                cobnutDropSound.play().catch(e => console.warn("Sound playback failed:", e));
+                cobnutDropSound.play().catch(e => console.warn("Cobnut sound playback failed:", e));
             }
             if (data.animation_triggered) await playAnimationAndReset();
         } catch (error) {
@@ -153,7 +177,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Drag and Drop Logic (Unchanged) ---
     draggableCobnut.addEventListener('dragstart', (e) => {isDraggingDesktop = true; e.dataTransfer.setData('text/plain', 'cobnut'); draggableCobnut.classList.add('dragging');});
     draggableCobnut.addEventListener('dragend', () => {isDraggingDesktop = false; draggableCobnut.classList.remove('dragging');});
     jarArea.addEventListener('dragover', (e) => {e.preventDefault(); jarArea.classList.add('drag-over');});
@@ -170,21 +193,37 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("Congratulations! The jar is full! (Animation error: Missing GIF URL)");
             await triggerServerJarReset(); return;
         }
-        funAnimationImg.src = currentUserAnimationGifUrl + '?t=' + new Date().getTime(); // Use user-specific or default
+        funAnimationImg.src = currentUserAnimationGifUrl + '?t=' + new Date().getTime();
         animationContainer.classList.remove('hidden');
         animationContainer.classList.add('visible');
         document.querySelector('.game-area').style.display = 'none';
         document.querySelector('.stats-area').style.display = 'none';
 
-        funAnimationImg.onload = () => console.log("User-specific/default GIF loaded.");
+        // --- Play Random Celebration Sound ---
+        if (celebrationSoundsList && celebrationSoundsList.length > 0) {
+            const randomIndex = Math.floor(Math.random() * celebrationSoundsList.length);
+            const randomSoundUrl = celebrationSoundsList[randomIndex];
+            console.log("Playing celebration sound:", randomSoundUrl);
+            celebrationAudioPlayer.src = randomSoundUrl;
+            celebrationAudioPlayer.currentTime = 0;
+            celebrationAudioPlayer.play().catch(error => {
+                console.warn("Celebration sound playback failed:", error);
+            });
+        } else {
+            console.log("No celebration sounds loaded or list is empty.");
+        }
+        // --- END Play Random Celebration Sound ---
+
+        funAnimationImg.onload = () => console.log("Animation GIF loaded.");
         funAnimationImg.onerror = async () => {
-            console.error("Error loading user-specific/default GIF. Falling back if possible or just alerting.");
+            console.error("Error loading animation GIF:", currentUserAnimationGifUrl, ". Trying default.");
             funAnimationImg.src = defaultAnimationGifSrc + '?t=' + new Date().getTime(); // Try default as ultimate fallback
             funAnimationImg.onerror = async () => { // If default also fails
+                 console.error("Default animation also failed to load.");
                  alert("Congratulations! The jar is full! (Failed to load any animation image).");
                  animationContainer.classList.remove('visible'); animationContainer.classList.add('hidden');
                  await triggerServerJarReset();
-            }
+            };
         };
 
         return new Promise(resolve => {
@@ -211,17 +250,26 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("Issue resetting jar.");
         }
     }
+    
+    function showUserSelection() {
+        appContainer.style.display = 'none';
+        userSelectionScreen.style.display = 'flex';
+        loadUsers();
+    }
 
     function initializeApp() {
+        fetchCelebrationSounds(); // <<< Fetch sounds on app init
         const previouslySelectedUserId = localStorage.getItem('selectedUserId');
         if (previouslySelectedUserId) {
-            // Attempt to fetch all users and then find the previously selected one
-            // This ensures we have the latest data (like animation_gif_url)
-            fetch('/api/users').then(res => res.json()).then(users => {
+            fetch('/api/users').then(res => {
+                if (!res.ok) throw new Error(`API users fetch failed: ${res.status}`);
+                return res.json();
+                })
+            .then(users => {
                 const prevUser = users.find(u => u.id === parseInt(previouslySelectedUserId));
                 if (prevUser) {
                     selectUser(prevUser.id, prevUser.name, prevUser.profile_picture_url, prevUser.cobnuts_target, prevUser.animation_gif_url);
-                } else { // Previous user not found (e.g., deleted)
+                } else {
                     localStorage.removeItem('selectedUserId');
                     showUserSelection();
                 }
@@ -232,12 +280,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             showUserSelection();
         }
-    }
-    
-    function showUserSelection() {
-        appContainer.style.display = 'none';
-        userSelectionScreen.style.display = 'flex';
-        loadUsers();
     }
 
     initializeApp();

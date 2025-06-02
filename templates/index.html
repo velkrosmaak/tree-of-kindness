@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>The Tree Of Kindness Cobnuts</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"> </head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
 <body>
     <div id="userSelectionScreen" class="user-selection-container">
         <h2>Welcome! Who is playing?</h2>
@@ -14,7 +18,8 @@
         <p><a href="{{ url_for('admin_users') }}" class="admin-link">Admin Panel</a></p>
     </div>
 
-    <div id="appContainer" class="app-container" style="display:none;"> <header class="app-header">
+    <div id="appContainer" class="app-container" style="display:none;">
+        <header class="app-header">
             <div id="currentUserDisplay">
                 <img id="currentUserProfilePic" src="#" alt="User Profile">
                 <span id="currentUserName"></span>
@@ -47,8 +52,7 @@
 
         <div id="animationContainer"
              class="animation-container hidden"
-             data-animation-gif-src="{{ url_for('static', filename='images/unicorn_rainbow.gif') }}">
-            <h2>Wow! The jar is full!</h2>
+             data-animation-gif-src="{{ url_for('static', filename='images/unicorn_rainbow.gif') }}"> <h2>Wow! The jar is full!</h2>
             <img id="funAnimation" src="#" alt="Unicorns and Rainbows!">
             <p>Amazing kindness!</p>
         </div>
