@@ -1,0 +1,66 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Manage Users - Cobnuts Admin{% endblock %}
+
+{% block content %}
+    <section class="admin-section">
+        <h2>Add New User</h2>
+        <form method="POST" action="{{ url_for('admin_users') }}" enctype="multipart/form-data" class="admin-form">
+            <div>
+                <label for="name">Name:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            <div>
+                <label for="profile_picture">Profile Picture:</label>
+                <input type="file" id="profile_picture" name="profile_picture" accept="image/*" onchange="previewImage(event, 'newUserPreview')" required>
+                <div id="newUserPreview" class="image-preview"></div>
+            </div>
+            <div>
+                <label for="cobnuts_target">Cobnuts Target for Animation:</label>
+                <input type="number" id="cobnuts_target" name="cobnuts_target" value="10" min="1" required>
+            </div>
+            <button type="submit" class="button-primary">Add User</button>
+        </form>
+    </section>
+
+    <section class="admin-section">
+        <h2>Existing Users</h2>
+        {% if users %}
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Profile Pic</th>
+                        <th>Name</th>
+                        <th>Cobnuts Target</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for user in users %}
+                    <tr>
+                        <td>
+                            {% if user.profile_picture %}
+                                {# Ensure user.profile_picture is treated as a plain filename #}
+                                {# Stripping both kinds of slashes just to be extremely safe with existing data #}
+                                <img src="{{ url_for('static', filename='profile_pics/' + user.profile_picture.lstrip('/\\')) }}" alt="{{ user.name }} profile picture" class="profile-pic-thumb">
+                            {% else %}
+                                No Pic
+                            {% endif %}
+                        </td>
+                        <td>{{ user.name }}</td>
+                        <td>{{ user.cobnuts_target }}</td>
+                        <td>
+                            <a href="{{ url_for('admin_edit_user', user_id=user.id) }}" class="button-secondary">Edit</a>
+                            <form method="POST" action="{{ url_for('admin_delete_user', user_id=user.id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete {{ user.name }}? This cannot be undone.');">
+                                <button type="submit" class="button-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No users found. Add one above!</p>
+        {% endif %}
+    </section>
+{% endblock %}

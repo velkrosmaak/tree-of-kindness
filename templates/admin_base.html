@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin - Cobnuts{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Cobnuts Admin Panel</h1>
+        <nav>
+            <a href="{{ url_for('admin_users') }}">Manage Users</a> |
+            <a href="{{ url_for('index') }}">Back to App</a>
+        </nav>
+    </header>
+    <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flashes">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+    <footer>
+        <p>&copy; {{ now.year }} The Tree of Kindness Cobnuts</p> </footer>
+     <script>
+        // Simple preview for image uploads
+        function previewImage(event, previewId) {
+            const reader = new FileReader();
+            reader.onload = function(){
+                const output = document.getElementById(previewId);
+                output.innerHTML = ''; // Clear previous image
+                const img = document.createElement('img');
+                img.src = reader.result;
+                img.style.maxWidth = '100px';
+                img.style.maxHeight = '100px';
+                img.style.marginTop = '10px';
+                output.appendChild(img);
+            };
+            if (event.target.files[0]) {
+                reader.readAsDataURL(event.target.files[0]);
+            } else {
+                 document.getElementById(previewId).innerHTML = ''; // Clear if no file selected
+            }
+        }
+    </script>
+</body>
+</html>

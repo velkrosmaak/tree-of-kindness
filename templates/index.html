@@ -2,13 +2,26 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>The Tree Of Kindness Cobnuts</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"> </head>
 <body>
-    <div class="app-container">
-        <h1>🌰 The Tree Of Kindness Cobnuts 🌰</h1>
+    <div id="userSelectionScreen" class="user-selection-container">
+        <h2>Welcome! Who is playing?</h2>
+        <div id="userList" class="user-list">
+            <p>Loading users...</p>
+        </div>
+        <p><a href="{{ url_for('admin_users') }}" class="admin-link">Admin Panel</a></p>
+    </div>
+
+    <div id="appContainer" class="app-container" style="display:none;"> <header class="app-header">
+            <div id="currentUserDisplay">
+                <img id="currentUserProfilePic" src="#" alt="User Profile">
+                <span id="currentUserName"></span>
+            </div>
+            <h1>🌰 The Tree Of Kindness Cobnuts 🌰</h1>
+            <button id="changeUserButton" class="button-secondary">Change User</button>
+        </header>
 
         <div class="game-area">
             <div class="cobnut-source-area">
@@ -32,13 +45,13 @@
             <p>Total Cobnuts Earned: <span id="totalCobnutsDisplay">0</span></p>
         </div>
 
-        <div id="animationContainer" class="animation-container" style="display:none;"
+        <div id="animationContainer"
+             class="animation-container hidden"
              data-animation-gif-src="{{ url_for('static', filename='images/unicorn_rainbow.gif') }}">
             <h2>Wow! The jar is full!</h2>
-            <img id="funAnimation" src="#" alt="Unicorns and Rainbows!"> <p>Amazing kindness!</p>
+            <img id="funAnimation" src="#" alt="Unicorns and Rainbows!">
+            <p>Amazing kindness!</p>
         </div>
-
-        <button id="resetTestButton" style="display:none;">Reset Jar (Test)</button>
     </div>
 
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>

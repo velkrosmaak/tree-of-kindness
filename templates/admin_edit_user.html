@@ -1,0 +1,36 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Edit User {{ user.name }} - Cobnuts Admin{% endblock %}
+
+{% block content %}
+    <section class="admin-section">
+        <h2>Edit User: {{ user.name }}</h2>
+        <form method="POST" action="{{ url_for('admin_edit_user', user_id=user.id) }}" enctype="multipart/form-data" class="admin-form">
+            <div>
+                <label for="name">Name:</label>
+                <input type="text" id="name" name="name" value="{{ user.name }}" required>
+            </div>
+            <div>
+                <label for="current_profile_picture">Current Profile Picture:</label>
+                {% if user.profile_picture %}
+                     {# Ensure user.profile_picture is treated as a plain filename #}
+                     {# Stripping both kinds of slashes just to be extremely safe with existing data #}
+                    <img src="{{ url_for('static', filename='profile_pics/' + user.profile_picture.lstrip('/\\')) }}" alt="{{ user.name }} profile picture" class="profile-pic-thumb">
+                {% else %}
+                    <p>No profile picture set.</p>
+                {% endif %}
+            </div>
+            <div>
+                <label for="profile_picture">New Profile Picture (optional):</label>
+                <input type="file" id="profile_picture" name="profile_picture" accept="image/*" onchange="previewImage(event, 'editUserPreview')">
+                 <div id="editUserPreview" class="image-preview"></div>
+            </div>
+            <div>
+                <label for="cobnuts_target">Cobnuts Target for Animation:</label>
+                <input type="number" id="cobnuts_target" name="cobnuts_target" value="{{ user.cobnuts_target }}" min="1" required>
+            </div>
+            <button type="submit" class="button-primary">Update User</button>
+            <a href="{{ url_for('admin_users') }}" class="button-secondary">Cancel</a>
+        </form>
+    </section>
+{% endblock %}
