@@ -1,0 +1,132 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Dashboard - Cobnuts Admin{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <h2>Analytics Dashboard</h2>
+    <p>An overview of kindness gestures recorded in the app.</p>
+</section>
+
+<section class="admin-section chart-container">
+    <h3>Total Cobnuts Per User</h3>
+    <canvas id="cobnutsPerUserChart"></canvas>
+</section>
+
+<section class="admin-section chart-container">
+    <h3>Cobnut Activity Over Time</h3>
+    <canvas id="cobnutsOverTimeChart"></canvas>
+</section>
+
+<section class="admin-section">
+    <h3>Recent Activity Log (Last 50)</h3>
+    {% if logs %}
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Date</th>
+                <th>Time (UTC)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>{{ log.user_name }}</td>
+                <td>{{ log.timestamp.strftime('%Y-%m-%d') }}</td>
+                <td>{{ log.timestamp.strftime('%H:%M:%S') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No cobnuts have been logged yet.</p>
+    {% endif %}
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart Colors
+    const chartColors = [
+        'rgba(255, 99, 132, 0.7)', 'rgba(54, 162, 235, 0.7)',
+        'rgba(255, 206, 86, 0.7)', 'rgba(75, 192, 192, 0.7)',
+        'rgba(153, 102, 255, 0.7)', 'rgba(255, 159, 64, 0.7)'
+    ];
+
+    // 1. Cobnuts Per User Chart (Bar Chart)
+    fetch("{{ url_for('api_admin_chart_totals_per_user') }}")
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('cobnutsPerUserChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.user_name),
+                    datasets: [{
+                        label: 'Total Cobnuts Earned',
+                        data: data.map(d => d.total_cobnuts),
+                        backgroundColor: chartColors,
+                        borderColor: chartColors.map(c => c.replace('0.7', '1')),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: { beginAtZero: true, ticks: { precision: 0 } }
+                    },
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: true, text: 'Total Cobnuts Earned by Each User' }
+                    }
+                }
+            });
+        }).catch(error => console.error('Error fetching data for per user chart:', error));
+
+    // 2. Cobnuts Over Time Chart (Line Chart)
+    fetch("{{ url_for('api_admin_chart_activity_over_time') }}")
+        .then(response => response.json())
+        .then(data => {
+            if (!data.labels || data.datasets.every(ds => ds.data.length === 0)) {
+                document.getElementById('cobnutsOverTimeChart').style.display = 'none';
+                return;
+            }
+
+            // Assign colors to datasets
+            data.datasets.forEach((dataset, index) => {
+                dataset.borderColor = chartColors[index % chartColors.length];
+                dataset.backgroundColor = chartColors[index % chartColors.length].replace('0.7', '0.2');
+                dataset.tension = 0.1;
+                dataset.fill = true;
+            });
+            
+            const ctx = document.getElementById('cobnutsOverTimeChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: data.datasets
+                },
+                options: {
+                    scales: {
+                        y: { beginAtZero: true, ticks: { precision: 0 }, stacked: true },
+                        x: {
+                            type: 'time',
+                            time: { unit: 'day', tooltipFormat: 'MMM d, yyyy' },
+                            title: { display: true, text: 'Date' }
+                        }
+                    },
+                    responsive: true,
+                    plugins: {
+                        title: { display: true, text: 'Daily Cobnut Activity (Stacked)' }
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                }
+            });
+        }).catch(error => console.error('Error fetching data for activity over time chart:', error));
+});
+</script>
+{% endblock %}

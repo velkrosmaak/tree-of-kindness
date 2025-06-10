@@ -15,7 +15,7 @@
         <div id="userList" class="user-list">
             <p>Loading users...</p>
         </div>
-        <p><a href="{{ url_for('admin_users') }}" class="admin-link">Admin Panel</a></p>
+        <p><a href="{{ url_for('admin_dashboard') }}" class="admin-link">Admin Dashboard</a></p>
     </div>
 
     <div id="appContainer" class="app-container" style="display:none;">
@@ -37,6 +37,8 @@
             </div>
 
             <div id="jarArea" class="jar-area">
+                <div id="cobnutsInJarContainer"></div>
+                
                 <img id="jarImage"
                      src="{{ url_for('static', filename='images/jar_empty.png') }}"
                      data-empty-src="{{ url_for('static', filename='images/jar_empty.png') }}"
@@ -52,7 +54,8 @@
 
         <div id="animationContainer"
              class="animation-container hidden"
-             data-animation-gif-src="{{ url_for('static', filename='images/unicorn_rainbow.gif') }}"> <h2>Wow! The jar is full!</h2>
+             data-animation-gif-src="{{ url_for('static', filename='images/unicorn_rainbow.gif') }}">
+            <h2>Wow! The jar is full!</h2>
             <img id="funAnimation" src="#" alt="Unicorns and Rainbows!">
             <p>Amazing kindness!</p>
         </div>
